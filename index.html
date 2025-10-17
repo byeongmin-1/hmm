@@ -1,145 +1,194 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>짝사랑 확률 테스트 💘 (결과 고정형)</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>내 IP 위치 보기</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2r6bV6gkF3aQxk4jv+2wQfCk9w6Yk0w8qg9gYkM=" crossorigin=""/>
   <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      text-align: center;
-      background: linear-gradient(180deg,#fff0f5,#ffeef8);
-      padding: 60px 16px;
-      color: #333;
-    }
-    .card {
-      display: inline-block;
-      background: white;
-      padding: 28px;
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-      max-width: 420px;
-      width: 100%;
-    }
-    h1 { margin: 0 0 8px; font-size: 22px; }
-    p { margin-top: 0; color: #666; }
-    input, button {
-      padding: 12px 14px;
-      margin: 8px 0;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #e6cfe0;
-      width: calc(100% - 32px);
-      box-sizing: border-box;
-    }
-    input:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,105,180,0.12); }
-    button {
-      background-color: #ff69b4;
-      color: white;
-      cursor: pointer;
-      border: none;
-      font-weight: 600;
-    }
-    #result {
-      font-size: 20px;
-      margin-top: 18px;
-      min-height: 36px;
-    }
-    .small {
-      font-size: 13px;
-      color: #999;
-      margin-top: 10px;
-    }
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#60a5fa}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,#071024 0%, #07182a 100%); color:#e6eef6; display:flex; align-items:center; justify-content:center; padding:24px}
+    .wrap{width:100%; max-width:960px}
+    header{display:flex; align-items:center; gap:12px; margin-bottom:16px}
+    h1{font-size:20px; margin:0}
+    p.lead{margin:0; color:var(--muted); font-size:13px}
+
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:16px; border-radius:12px; box-shadow:0 6px 24px rgba(2,6,23,0.6);}
+    .grid{display:grid; grid-template-columns:320px 1fr; gap:16px}
+
+    .info{display:flex; flex-direction:column; gap:10px}
+    .row{background:rgba(255,255,255,0.02); padding:10px; border-radius:8px}
+    .label{font-size:12px; color:var(--muted)}
+    .value{font-weight:600; font-size:15px}
+
+    #map{width:100%; height:420px; border-radius:10px; overflow:hidden}
+    .controls{display:flex; gap:8px; margin-top:8px;}
+    button{background:transparent; border:1px solid rgba(255,255,255,0.06); padding:8px 10px; border-radius:8px; color:inherit; cursor:pointer}
+    button.primary{background:var(--accent); border-color:transparent; color:#07203a}
+    small.note{display:block; margin-top:8px; color:var(--muted)}
+
+    @media(max-width:880px){.grid{grid-template-columns:1fr;}.info{order:2}}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>💘 짝사랑 성공 확률 테스트 💘</h1>
-    <p>두 사람의 이름을 입력하세요 (같은 이름 조합이면 항상 같은 결과가 나옵니다).</p>
+  <div class="wrap">
+    <header>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="#60a5fa" stroke-width="1.2"/><path d="M12 7v5l3 2" stroke="#60a5fa" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h1>내 IP 위치 보기</h1>
+        <p class="lead">IP 기반 위치와 간단한 지도(Leaflet)를 표시합니다. 브라우저에서 열어 사용하세요.</p>
+      </div>
+    </header>
 
-    <form id="loveForm">
-      <input type="text" id="yourName" name="yourName" placeholder="당신의 이름" required autocomplete="off"><br>
-      <input type="text" id="crushName" name="crushName" placeholder="짝사랑 상대 이름" required autocomplete="off"><br>
-      <button type="submit">확률 보기</button>
-    </form>
+    <div class="card">
+      <div class="grid">
+        <div class="info">
+          <div class="row">
+            <div class="label">IP 주소</div>
+            <div class="value" id="ip">불러오는 중...</div>
+            <div class="controls">
+              <button id="copyBtn">IP 복사</button>
+              <button id="refreshBtn">새로고침</button>
+            </div>
+          </div>
 
-    <div id="result"></div>
-    <div class="small">같은 이름 조합이면(예: "김땡땡" + "최땡땡") 언제나 동일한 숫자가 나옵니다. 이름 순서는 무시됩니다.</div>
+          <div class="row">
+            <div class="label">위치</div>
+            <div class="value" id="location">불러오는 중...</div>
+            <div class="label">도시 / 지역</div>
+            <div id="city">—</div>
+            <div class="label">국가</div>
+            <div id="country">—</div>
+            <div class="label">위도, 경도</div>
+            <div id="coords">—</div>
+          </div>
+
+          <div class="row">
+            <div class="label">ISP</div>
+            <div id="isp">—</div>
+            <div class="label">타임존</div>
+            <div id="timezone">—</div>
+          </div>
+
+          <small class="note">참고: IP 기반 위치는 정확도가 제한적입니다. 더 정확한 위치는 브라우저의 위치 정보 권한을 사용해야 합니다.</small>
+        </div>
+
+        <div>
+          <div id="map"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j7kV+0v1q6Qq0eZs+q0wO7rjC4c6pG1n8r9A5+M=" crossorigin=""></script>
   <script>
-    // djb2 해시 함수 (간단하고 빠름)
-    function djb2Hash(str) {
-      let hash = 5381;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) + str.charCodeAt(i); // hash * 33 + c
-        // 자바스크립트 정수 오버플로우 방지
-        hash = hash & 0xFFFFFFFF;
-      }
-      return Math.abs(hash);
-    }
+    const ipEl = document.getElementById('ip');
+    const locationEl = document.getElementById('location');
+    const cityEl = document.getElementById('city');
+    const countryEl = document.getElementById('country');
+    const coordsEl = document.getElementById('coords');
+    const ispEl = document.getElementById('isp');
+    const tzEl = document.getElementById('timezone');
+    const copyBtn = document.getElementById('copyBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
 
-    // 이름 정규화: 공백 제거, 소문자화, 연속 공백은 단일 공백으로
-    function normalizeName(name) {
-      return name.trim().replace(/\s+/g, ' ').toLowerCase();
-    }
+    // 초기 지도 (세계보기)
+    const map = L.map('map', {attributionControl:false}).setView([20,0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+    let marker = null;
 
-    // 두 이름 조합으로 50~100 사이의 결정적 퍼센트 생성
-    function deterministicPercent(nameA, nameB) {
-      const a = normalizeName(nameA);
-      const b = normalizeName(nameB);
-      // 순서 무시: 알파벳(유니코드) 순서 기준으로 정렬
-      const pair = [a, b].sort().join('|'); // 구분자 포함
-      const hash = djb2Hash(pair);
-      // 0 ~ 50 까지 값 -> +50 => 50 ~ 100
-      const percent = (hash % 51) + 50;
-      return percent;
-    }
-
-    document.getElementById("loveForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-
-      const yourName = document.getElementById("yourName").value;
-      const crushName = document.getElementById("crushName").value;
-      const resultBox = document.getElementById("result");
-
-      if (!yourName.trim() || !crushName.trim()) {
-        resultBox.innerText = "⚠️ 이름을 모두 입력해주세요!";
-        return;
-      }
-
-      const percent = deterministicPercent(yourName, crushName);
-
-      // 다양한 문구를 결과에 섞어 보여주기 (같은 percent이면 같은 문구 선택)
-      const messages = [
-        "운명의 가능성",
-        "달콤한 기회",
-        "설렘 지수",
-        "성공 확률",
-        "짝사랑의 별점"
+    async function fetchIPInfo(){
+      // ipapi.co 사용 (간편, CORS 허용)
+      const apis = [
+        'https://ipapi.co/json/',
+        'https://ipinfo.io/json?token=', // 토큰이 없으면 일부 정보가 제한될 수 있음
       ];
-      // 문구도 결정적으로 선택 (같은 이름쌍이면 항상 같은 문구)
-      const msgIndex = djb2Hash(normalizeName(yourName) + '|' + normalizeName(crushName)) % messages.length;
-      const label = messages[msgIndex];
 
-      resultBox.innerText = `😍 ${yourName}와(과) ${crushName}의 ${label}은(는) ${percent}%입니다!`;
+      ipEl.textContent = '불러오는 중...';
+      try {
+        // 우선 ipapi.co로 시도
+        const res = await fetch(apis[0]);
+        if(!res.ok) throw new Error('api 실패');
+        const data = await res.json();
+        // ipapi 응답은: ip, city, region, country_name, latitude, longitude, org, timezone
+        showData({
+          ip: data.ip || '—',
+          city: (data.city || data.region) || '—',
+          region: data.region || '—',
+          country: data.country_name || data.country || '—',
+          lat: data.latitude || data.lat || null,
+          lon: data.longitude || data.lon || null,
+          isp: data.org || data.org || '—',
+          timezone: data.timezone || '—'
+        });
+        return;
+      } catch(e){
+        console.warn('ipapi 실패, 대체 API 시도', e);
+      }
 
-      // 기존처럼 Formspree로 전송 (비동기, 실패시 무시)
-      fetch("https://formspree.io/f/xanegwav", {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          yourName: yourName,
-          crushName: crushName,
-          message: `${yourName}가 ${crushName}를 좋아해요! (결정적 확률: ${percent}%)`
-        })
-      }).catch(() => {
-        // 전송 실패시 조용히 무시 (네트워크 문제 등)
-      });
+      try {
+        const res2 = await fetch(apis[1]);
+        if(!res2.ok) throw new Error('대체 api 실패');
+        const d2 = await res2.json();
+        // ipinfo 제공 포맷: ip, city, region, country, loc ("lat,lon"), org, timezone
+        const [lat, lon] = d2.loc ? d2.loc.split(',') : [null, null];
+        showData({
+          ip: d2.ip || '—',
+          city: d2.city || d2.region || '—',
+          region: d2.region || '—',
+          country: d2.country || '—',
+          lat: lat, lon: lon,
+          isp: d2.org || '—',
+          timezone: d2.timezone || '—'
+        });
+        return;
+      } catch(e){
+        console.error('모든 API 실패', e);
+        ipEl.textContent = '불러오기 실패';
+        locationEl.textContent = '정보 없음';
+        cityEl.textContent = countryEl.textContent = coordsEl.textContent = ispEl.textContent = tzEl.textContent = '—';
+      }
+    }
+
+    function showData(d){
+      ipEl.textContent = d.ip || '—';
+      const place = [d.city, d.region, d.country].filter(Boolean).join(', ');
+      locationEl.textContent = place || '—';
+      cityEl.textContent = d.city || '—';
+      countryEl.textContent = d.country || '—';
+      ispEl.textContent = d.isp || '—';
+      tzEl.textContent = d.timezone || '—';
+      if(d.lat && d.lon){
+        coordsEl.textContent = `${d.lat}, ${d.lon}`;
+        const lat = parseFloat(d.lat);
+        const lon = parseFloat(d.lon);
+        map.setView([lat, lon], 11);
+        if(marker) marker.setLatLng([lat, lon]);
+        else marker = L.marker([lat, lon]).addTo(map);
+        marker.bindPopup(`<strong>IP:</strong> ${d.ip}<br><strong>위치:</strong> ${place}`).openPopup();
+      } else {
+        coordsEl.textContent = '위도/경도 정보 없음';
+      }
+    }
+
+    copyBtn.addEventListener('click', ()=>{
+      const text = ipEl.textContent || '';
+      if(!text || text === '불러오는 중...' || text === '불러오기 실패') return;
+      navigator.clipboard.writeText(text).then(()=>{
+        copyBtn.textContent = '복사됨';
+        setTimeout(()=>copyBtn.textContent = 'IP 복사',1200);
+      }).catch(()=>alert('복사 실패'));
     });
+
+    refreshBtn.addEventListener('click', ()=>{
+      fetchIPInfo();
+    });
+
+    // 최초 실행
+    fetchIPInfo();
   </script>
 </body>
 </html>
